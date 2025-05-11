@@ -12,9 +12,12 @@
 #define BROADCAST_PIPE_NAME TEXT("\\\\.\\pipe\\BroadcastPipe")
 #define BUFSIZE 512
 
+#define NO_FREE_PLAYER_ERROR_MESSAGE TEXT("Não há posições livres.")
+#define USERNAME_EXISTS_ERROR_MESSAGE TEXT("Nome de usuário já existe.")
+
 BOOL openNamedPipe(HANDLE* hPipe);
 BOOL openBroadcastNamedPipe(HANDLE* hPipe);
-BOOL testNamedPipe(HANDLE* hPipe);
+BOOL registerOnServer(HANDLE hPipe, TCHAR* username);
 DWORD WINAPI readServerMessages(LPVOID lpvParam);
 
 #endif // NAMEDPIPES_H

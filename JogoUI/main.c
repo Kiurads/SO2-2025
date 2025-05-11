@@ -3,13 +3,22 @@
 
 #define TAM 100
 
-int _tmain() {
+int _tmain(int argc, TCHAR *argv[]) {
 #ifdef UNICODE
-    _setmode(_fileno(stdin), _O_WTEXT);
-    _setmode(_fileno(stdout), _O_WTEXT);
+	_setmode(_fileno(stdin), _O_WTEXT);
+	_setmode(_fileno(stdout), _O_WTEXT);
 #endif
+
+	// Verifica se o número de argumentos é válido
+	if (argc != 2)
+	{
+		_tprintf(TEXT("Uso: %s <nome_do_jogador>\n"), argv[0]);
+		return 1;
+	}
+
 	HANDLE hPipe;
 	HANDLE hBroadcastPipe;
+	BOOL fSuccess = FALSE;
 	TCHAR* mappedView = getMapViewOfFile();
 
 	if (mappedView == NULL) {
@@ -19,6 +28,12 @@ int _tmain() {
 
 	if (!openNamedPipe(&hPipe)) {
 		_tprintf(TEXT("Erro ao abrir o Named Pipe.\n"));
+		return 1;
+	}
+
+	if (!registerOnServer(hPipe, argv[1])) {
+		_tprintf(TEXT("Erro ao registar no servidor.\n"));
+		CloseHandle(hPipe);
 		return 1;
 	}
 
