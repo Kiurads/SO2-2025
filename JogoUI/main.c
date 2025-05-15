@@ -1,5 +1,6 @@
 #include "NamedPipes.h"
 #include "FileMapping.h"
+#include "Structs.h"
 
 #define TAM 100
 
@@ -17,7 +18,7 @@ int _tmain(int argc, TCHAR *argv[]) {
 	}
 
 	HANDLE hPipe;
-	HANDLE hBroadcastPipe;
+	Broadcast broadcastData;
 	BOOL fSuccess = FALSE;
 	TCHAR* mappedView = getMapViewOfFile();
 
@@ -37,16 +38,18 @@ int _tmain(int argc, TCHAR *argv[]) {
 		return 1;
 	}
 
-	if (!openBroadcastNamedPipe(&hBroadcastPipe)) {
+	if (!openBroadcastNamedPipe(&broadcastData.hPipe)) {
 		_tprintf(TEXT("Erro ao abrir o Named Pipe.\n"));
 		return 1;
 	}
+	
+	broadcastData.running = TRUE;
 
 	HANDLE hThread = CreateThread(
 		NULL,
 		0,
 		readServerMessages,
-		(LPVOID)hBroadcastPipe,
+		(LPVOID)&broadcastData,
 		0,
 		NULL
 	);
@@ -57,13 +60,72 @@ int _tmain(int argc, TCHAR *argv[]) {
 		return FALSE;
 	}
 
+	TCHAR input[BUFSIZE] = TEXT("");
+
 	do
 	{
+		TCHAR readBuffer[BUFSIZE] = TEXT("");
 
-	} while (TRUE);
+		_tprintf(TEXT("> "));
+
+		_fgetts(input, BUFSIZE, stdin);
+
+		input[_tcslen(input) - 1] = TEXT('\0');
+
+		if (input[0] == TEXT(':'))
+		{
+			if (_tcscmp(input, TEXT(":pont")) != 0 && _tcscmp(input, TEXT(":jogs")) != 0 && _tcscmp(input, TEXT(":sair")) != 0)
+			{
+				_tprintf(TEXT("Comando inválido.\n"));
+				continue;
+			}
+		}
+
+		fSuccess = WriteFile(
+			hPipe,
+			input,
+			(_tcslen(input) + 1) * sizeof(TCHAR),
+			NULL,
+			NULL
+		);
+
+		if (!fSuccess)
+		{
+			_tprintf(TEXT("Erro ao enviar o comando: %d\n"), GetLastError());
+			CloseHandle(hPipe);
+			CloseHandle(broadcastData.hPipe);
+			WaitForSingleObject(hThread, INFINITE);
+			return 1;
+		}
+
+		fSuccess = ReadFile(
+			hPipe,
+			readBuffer,
+			BUFSIZE * sizeof(TCHAR),
+			NULL,
+			NULL
+		);
+
+		if (!fSuccess || GetLastError() == ERROR_BROKEN_PIPE)
+		{
+			_tprintf(TEXT("Erro ao ler do Named Pipe: %d\n"), GetLastError());
+			CloseHandle(hPipe);
+			CloseHandle(broadcastData.hPipe);
+			WaitForSingleObject(hThread, INFINITE);
+			return 1;
+		}
+
+		// Mostrar a resposta do servidor
+		_tprintf(TEXT("Resposta do servidor: %s\n"), readBuffer);
+	} while (_tcscmp(input, TEXT(":sair")) != 0);
+
+	_tprintf(TEXT("A encerrar a thread de broadcast...\n"));
+
+	WaitForSingleObject(hThread, INFINITE);
+	
+	_tprintf(TEXT("A thread de broadcast foi encerrada.\n"));
 
 	CloseHandle(hPipe);
-	CloseHandle(hBroadcastPipe);
 	UnmapViewOfFile(mappedView);
 
 	return 0;

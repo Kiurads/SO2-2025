@@ -134,6 +134,7 @@
     <ClCompile Include="Main.c" />
     <ClCompile Include="NamedPipes.c" />
     <ClCompile Include="Registry.c" />
+    <ClCompile Include="Utils.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Broadcast.h" />
@@ -141,6 +142,7 @@
     <ClInclude Include="NamedPipes.h" />
     <ClInclude Include="Registry.h" />
     <ClInclude Include="Structs.h" />
+    <ClInclude Include="Utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

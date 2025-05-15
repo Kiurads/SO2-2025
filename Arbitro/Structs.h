@@ -14,14 +14,18 @@ typedef struct {
 	TCHAR message[BROADCAST_MESSAGE_SIZE];
 } BroadcastData;
 
-typedef struct {
+typedef struct Player Player;
+
+struct Player {
 	BOOL active;
 	TCHAR name[50];
+	int score;
 	HANDLE hPipe;
 	HANDLE hPipeBroadcast;
 	HANDLE hThread;
 	BroadcastData* broadcastData;
-} Player;
+	Player* players;
+};
 
 typedef struct {
 	Player players[20];

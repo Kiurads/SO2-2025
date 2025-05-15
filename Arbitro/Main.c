@@ -8,8 +8,6 @@
 #include "NamedPipes.h"
 #include "Events.h"
 
-#define TAM 100
-
 int _tmain() {
 #ifdef UNICODE
     _setmode(_fileno(stdin), _O_WTEXT);
@@ -85,12 +83,12 @@ int _tmain() {
 		return FALSE;
 	}
 
-	TCHAR command[TAM] = TEXT("");
+	TCHAR command[BUFSIZE] = TEXT("");
 
 	do
 	{
 		_tprintf(TEXT("Digite o comando: "));
-		_fgetts(command, TAM, stdin);
+		_fgetts(command, BUFSIZE, stdin);
 
 		command[_tcslen(command) - 1] = '\0';
 

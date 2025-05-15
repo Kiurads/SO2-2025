@@ -1,4 +1,5 @@
 #include "NamedPipes.h"
+#include "Utils.h"
 
 BOOL createClientNamedPipe(HANDLE* hPipe)
 {
@@ -210,10 +211,12 @@ DWORD WINAPI acceptConnections(LPVOID lpvParam)
 
 			// Preenche os dados do jogador
 			serverData->players[freePlayerIndex].active = TRUE;
+			serverData->players[freePlayerIndex].score = 0;
 			_tcscpy(serverData->players[freePlayerIndex].name, username);
 			serverData->players[freePlayerIndex].hPipe = hPipe;
 			serverData->players[freePlayerIndex].hPipeBroadcast = hPipeBroadcast;
 			serverData->players[freePlayerIndex].broadcastData = serverData->broadcastData;
+			serverData->players[freePlayerIndex].players = serverData->players;
 
 			hThread = CreateThread(
 				NULL,
@@ -250,7 +253,7 @@ DWORD WINAPI manageClientThread(LPVOID lpvParam)
 
 	_tprintf(TEXT("[ManageClientThread:%d] Aguardando dados do cliente...\n"), GetCurrentThreadId());
 
-	while (TRUE)
+	while (player->active)
 	{
 		fSuccess = ReadFile(
 			player->hPipe,
@@ -268,10 +271,63 @@ DWORD WINAPI manageClientThread(LPVOID lpvParam)
 		}
 
 		_tprintf(TEXT("[ManageClientThread:%d] Dados recebidos: %s\n"), GetCurrentThreadId(), readBuffer);
+
+		TCHAR response[BUFSIZE] = TEXT("DEFAULT");
+		int commandCode = isCommand(readBuffer);
+
+		if (commandCode)
+		{
+			if (commandCode == GET_SCORE_COMMAND_CODE)
+			{
+				_stprintf_s(response, BUFSIZE, TEXT("Pontuação: %d"), player->score);
+			}
+			else if (commandCode == GET_PLAYERS_COMMAND_CODE)
+			{
+				_stprintf_s(response, BUFSIZE, TEXT("Jogadores ativos: "));
+				for (int i = 0; i < MAX_PLAYERS; i++)
+				{
+					if (player->players[i].active)
+					{
+						_tcscat_s(response, BUFSIZE, player->players[i].name);
+						_tcscat_s(response, BUFSIZE, TEXT(", "));
+					}
+				}
+				response[_tcslen(response) - 2] = TEXT('\0'); // Remove a última vírgula e espaço
+			}
+			else if (commandCode == EXIT_COMMAND_CODE)
+			{
+				_stprintf_s(player->broadcastData->message, BROADCAST_MESSAGE_SIZE, TEXT("Jogador %s saiu do jogo"), player->name);
+				SetEvent(player->broadcastData->hEvent);
+				player->active = FALSE;
+			}
+		}
+
+		fSuccess = WriteFile(
+			player->hPipe,
+			response,
+			(_tcslen(response) + 1) * sizeof(TCHAR),
+			NULL,
+			NULL
+		);
+
+		if (!fSuccess)
+		{
+			_tprintf(TEXT("[ManageClientThread:%d] Erro ao enviar dados para o Named Pipe de Broadcast: %d\n"), GetCurrentThreadId(), GetLastError());
+			CloseHandle(player->hPipe);
+			return 1;
+		}
 	}
+
+	_tprintf(TEXT("[ManageClientThread:%d] Encerrando thread...\n"), GetCurrentThreadId());
 
 	DisconnectNamedPipe(player->hPipe);
 	CloseHandle(player->hPipe);
+
+	DisconnectNamedPipe(player->hPipeBroadcast);
+	CloseHandle(player->hPipeBroadcast);
+
+	player->hPipe = NULL;
+	player->hPipeBroadcast = NULL;
 
 	return 0;
 }

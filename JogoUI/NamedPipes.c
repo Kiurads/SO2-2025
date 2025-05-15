@@ -1,4 +1,5 @@
 #include "NamedPipes.h"
+#include "Structs.h"
 
 BOOL openNamedPipe(HANDLE* hPipe)
 {
@@ -141,7 +142,7 @@ BOOL registerOnServer(HANDLE hPipe, TCHAR* username)
 
 DWORD WINAPI readServerMessages(LPVOID lpvParam)
 {
-	HANDLE hPipe = (HANDLE)lpvParam;
+	Broadcast *broadcastData = (Broadcast*)lpvParam;
 
 	TCHAR readBuffer[BUFSIZE] = TEXT("");
 	BOOL fSuccess = FALSE;
@@ -151,7 +152,7 @@ DWORD WINAPI readServerMessages(LPVOID lpvParam)
 	while (TRUE)
 	{
 		fSuccess = ReadFile(
-			hPipe,
+			broadcastData->hPipe,
 			readBuffer,
 			BUFSIZE * sizeof(TCHAR),
 			NULL,
@@ -160,17 +161,24 @@ DWORD WINAPI readServerMessages(LPVOID lpvParam)
 
 		if (!fSuccess || GetLastError() == ERROR_BROKEN_PIPE)
 		{
-			_tprintf(TEXT("[ReadServerThread:%d] Erro ao ler do Named Pipe: %d\n"), GetCurrentThreadId(), GetLastError());
-			CloseHandle(hPipe);
+			if (GetLastError() == ERROR_PIPE_NOT_CONNECTED)
+			{
+				_tprintf(TEXT("[ReadServerThread:%d] Servidor fechou a ligação\n"), GetCurrentThreadId());
+			}
+			else
+			{
+				_tprintf(TEXT("[ReadServerThread:%d] Erro ao ler do Named Pipe: %d\n"), GetCurrentThreadId(), GetLastError());
+			}
+
+			CloseHandle(broadcastData->hPipe);
 			return 1;
 		}
 
 		_tprintf(TEXT("[ReadServerThread:%d] Dados recebidos: %s\n"), GetCurrentThreadId(), readBuffer);
 	}
 
-	FlushFileBuffers(hPipe);
-	DisconnectNamedPipe(hPipe);
-	CloseHandle(hPipe);
+	DisconnectNamedPipe(broadcastData->hPipe);
+	CloseHandle(broadcastData->hPipe);
 
 	return 0;
 }
